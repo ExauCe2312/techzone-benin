@@ -39,7 +39,7 @@ export type GenerateDescriptionInput = {
 export async function generateDescription(input: GenerateDescriptionInput): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY est requis (voir .env.example)");
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   const examples = FEW_SHOT.map(
     (ex) =>
@@ -77,7 +77,14 @@ Réponds uniquement avec la description, sans rien d'autre.`;
       },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 200 },
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 200,
+          // Cette tâche est simple (1-2 phrases) : on désactive le "raisonnement" interne
+          // du modèle — inutile ici, et ça évite de récupérer un fragment de réflexion
+          // au lieu de la réponse finale (voir le filtre sur "thought" ci-dessous).
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     },
   );
@@ -88,7 +95,15 @@ Réponds uniquement avec la description, sans rien d'autre.`;
   }
 
   const data = await res.json();
-  const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const parts: Array<{ text?: string; thought?: boolean }> =
+    data?.candidates?.[0]?.content?.parts ?? [];
+  // Sur les modèles qui pensent avant de répondre, certaines "parts" ne sont que des
+  // brouillons de raisonnement (thought: true) — on ne garde que la réponse finale.
+  const text = parts
+    .filter((p) => !p.thought && p.text)
+    .map((p) => p.text)
+    .join(" ")
+    .trim();
   if (!text) throw new Error("Réponse Gemini vide ou inattendue");
-  return text.trim().replace(/^["«»]+|["«»]+$/g, "");
+  return text.replace(/^["«»]+|["«»]+$/g, "");
 }

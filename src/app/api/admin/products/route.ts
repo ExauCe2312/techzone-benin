@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { CATEGORIES, SUBCATEGORIES, type CategorySlug } from "@/lib/constants";
 import { createProduct, getAllProductsForAdmin, slugExists } from "@/lib/data";
@@ -60,5 +61,6 @@ export async function POST(req: Request) {
     featured: data.featured ?? false,
   });
 
+  revalidateTag("products", "max");
   return NextResponse.json({ item: product }, { status: 201 });
 }

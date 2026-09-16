@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { db } from "@/db";
 import { products, type NewProduct, type Product } from "@/db/schema";
 import { and, asc, desc, eq, gte, ilike, lte, ne, or, sql, type SQL } from "drizzle-orm";
@@ -20,7 +21,14 @@ const SORTS: Record<string, SQL[]> = {
   "prix-desc": [desc(products.price)],
 };
 
-export async function getProducts(filters: ProductFilters): Promise<Product[]> {
+// ————— Lecture côté catalogue public : mise en cache 5 min —————
+// Le catalogue ne change pas à la seconde, et ça évite d'interroger Supabase
+// à chaque visite. `revalidateTag("products")` (appelé après chaque
+// création/modification/suppression dans l'admin) vide ce cache immédiatement,
+// donc un changement reste visible tout de suite malgré le cache.
+const CACHE_OPTIONS = { revalidate: 300, tags: ["products"] };
+
+async function getProductsUncached(filters: ProductFilters): Promise<Product[]> {
   const conditions: SQL[] = [eq(products.active, true)];
 
   if (filters.cat) conditions.push(eq(products.category, filters.cat));
@@ -45,28 +53,31 @@ export async function getProducts(filters: ProductFilters): Promise<Product[]> {
     .where(and(...conditions))
     .orderBy(...orderBy);
 }
+export const getProducts = unstable_cache(getProductsUncached, ["products-list"], CACHE_OPTIONS);
 
-export async function getProductBySlug(slug: string): Promise<Product | undefined> {
+async function getProductBySlugUncached(slug: string): Promise<Product | undefined> {
   const rows = await db.select().from(products).where(eq(products.slug, slug)).limit(1);
   return rows[0];
 }
+export const getProductBySlug = unstable_cache(getProductBySlugUncached, ["products-by-slug"], CACHE_OPTIONS);
 
-export async function getRelatedProducts(product: Product, limit = 4): Promise<Product[]> {
+async function getRelatedProductsUncached(
+  subcategory: string,
+  excludeId: number,
+  limit = 4,
+): Promise<Product[]> {
   return db
     .select()
     .from(products)
     .where(
-      and(
-        eq(products.active, true),
-        eq(products.subcategory, product.subcategory),
-        ne(products.id, product.id),
-      ),
+      and(eq(products.active, true), eq(products.subcategory, subcategory), ne(products.id, excludeId)),
     )
     .orderBy(desc(products.createdAt))
     .limit(limit);
 }
+export const getRelatedProducts = unstable_cache(getRelatedProductsUncached, ["products-related"], CACHE_OPTIONS);
 
-export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
+async function getFeaturedProductsUncached(limit = 8): Promise<Product[]> {
   return db
     .select()
     .from(products)
@@ -74,8 +85,9 @@ export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
     .orderBy(desc(products.createdAt))
     .limit(limit);
 }
+export const getFeaturedProducts = unstable_cache(getFeaturedProductsUncached, ["products-featured"], CACHE_OPTIONS);
 
-export async function getNewArrivals(limit = 4): Promise<Product[]> {
+async function getNewArrivalsUncached(limit = 4): Promise<Product[]> {
   return db
     .select()
     .from(products)
@@ -83,8 +95,9 @@ export async function getNewArrivals(limit = 4): Promise<Product[]> {
     .orderBy(desc(products.createdAt))
     .limit(limit);
 }
+export const getNewArrivals = unstable_cache(getNewArrivalsUncached, ["products-new"], CACHE_OPTIONS);
 
-export async function getBrands(category?: string): Promise<string[]> {
+async function getBrandsUncached(category?: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ brand: products.brand })
     .from(products)
@@ -92,8 +105,9 @@ export async function getBrands(category?: string): Promise<string[]> {
     .orderBy(asc(products.brand));
   return rows.map((r) => r.brand).filter(Boolean);
 }
+export const getBrands = unstable_cache(getBrandsUncached, ["products-brands"], CACHE_OPTIONS);
 
-export async function getCategoryCounts(): Promise<Record<string, number>> {
+async function getCategoryCountsUncached(): Promise<Record<string, number>> {
   const rows = await db
     .select({ category: products.category, count: sql<number>`count(*)::int` })
     .from(products)
@@ -101,8 +115,9 @@ export async function getCategoryCounts(): Promise<Record<string, number>> {
     .groupBy(products.category);
   return Object.fromEntries(rows.map((r) => [r.category, r.count]));
 }
+export const getCategoryCounts = unstable_cache(getCategoryCountsUncached, ["products-category-counts"], CACHE_OPTIONS);
 
-export async function getSubcategoryCounts(category?: string): Promise<Record<string, number>> {
+async function getSubcategoryCountsUncached(category?: string): Promise<Record<string, number>> {
   const rows = await db
     .select({ subcategory: products.subcategory, count: sql<number>`count(*)::int` })
     .from(products)
@@ -110,8 +125,9 @@ export async function getSubcategoryCounts(category?: string): Promise<Record<st
     .groupBy(products.subcategory);
   return Object.fromEntries(rows.map((r) => [r.subcategory, r.count]));
 }
+export const getSubcategoryCounts = unstable_cache(getSubcategoryCountsUncached, ["products-subcategory-counts"], CACHE_OPTIONS);
 
-export async function getPriceBounds(): Promise<{ min: number; max: number }> {
+async function getPriceBoundsUncached(): Promise<{ min: number; max: number }> {
   const rows = await db
     .select({
       min: sql<number>`min(${products.price})::int`,
@@ -121,8 +137,9 @@ export async function getPriceBounds(): Promise<{ min: number; max: number }> {
     .where(eq(products.active, true));
   return rows[0] ?? { min: 0, max: 0 };
 }
+export const getPriceBounds = unstable_cache(getPriceBoundsUncached, ["products-price-bounds"], CACHE_OPTIONS);
 
-/* ————— Recherche instantanée (header) ————— */
+/* ————— Recherche instantanée (header) — non mise en cache, coût faible ————— */
 export type SearchHit = {
   slug: string;
   name: string;
@@ -156,7 +173,7 @@ export async function searchProducts(term: string, limit = 6): Promise<SearchHit
     .limit(limit);
 }
 
-/* ————— Administration du catalogue ————— */
+/* ————— Administration du catalogue — toujours en direct, jamais mis en cache ————— */
 export async function getAllProductsForAdmin(): Promise<Product[]> {
   return db.select().from(products).orderBy(desc(products.createdAt));
 }

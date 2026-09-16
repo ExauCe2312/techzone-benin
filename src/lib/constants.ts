@@ -73,5 +73,5 @@ export const STORE = {
   whatsapp: "+22963234114", // format international sans espaces, pour les liens wa.me
   whatsappDisplay: "+229 63 23 41 14",
   address: "Abomey-Calavi, Bénin",
-  hours: "Lun – Sam · 8 h 30 – 19 h",
+  hours: "Lun – Sam · 8h – 22h",
 };

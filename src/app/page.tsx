@@ -8,6 +8,11 @@ import { getCategoryCounts, getFeaturedProducts, getNewArrivals } from "@/lib/da
 import { CATEGORIES, STORE } from "@/lib/constants";
 import { whatsappCustomLink } from "@/lib/whatsapp";
 
+// force-dynamic plutôt qu'une regénération statique : sur le plan gratuit
+// Supabase, la base peut se mettre en pause après une période d'inactivité,
+// ce qui ferait échouer toute la build si cette page essayait de
+// pré-générer au moment du déploiement. Le cache des données (5 min,
+// voir lib/data.ts) suffit à réduire la charge sur Supabase sans ce risque.
 export const dynamic = "force-dynamic";
 
 const PERKS = [

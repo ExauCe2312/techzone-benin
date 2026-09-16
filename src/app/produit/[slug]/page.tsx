@@ -11,6 +11,10 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 
 type Params = Promise<{ slug: string }>;
 
+// Même choix que sur la page d'accueil : pas de pré-génération statique au
+// build, pour ne pas dépendre de la disponibilité de Supabase à ce moment-là.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
@@ -26,7 +30,7 @@ export default async function ProductPage({ params }: { params: Params }) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product, 4);
+  const related = await getRelatedProducts(product.subcategory, product.id, 4);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-16">

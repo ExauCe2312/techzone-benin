@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { deleteProduct, updateProduct } from "@/lib/data";
 
@@ -34,6 +35,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const product = await updateProduct(productId, parsed.data);
   if (!product) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+  revalidateTag("products", "max");
   return NextResponse.json({ item: product });
 }
 
@@ -44,5 +46,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Identifiant invalide." }, { status: 400 });
   }
   await deleteProduct(productId);
+  revalidateTag("products", "max");
   return NextResponse.json({ ok: true });
 }

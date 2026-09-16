@@ -24,7 +24,7 @@ const plex = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://techzone.bj"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://techzone.bj"),
   title: {
     default: "TechZone Bénin — Catalogue téléphones, ordinateurs & accessoires",
     template: "%s · TechZone Bénin",

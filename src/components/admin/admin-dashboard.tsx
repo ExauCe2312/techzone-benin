@@ -9,6 +9,7 @@ import {
 import type { Product } from "@/db/schema";
 import { CATEGORIES, CONDITIONS, SUBCATEGORIES, type CategorySlug } from "@/lib/constants";
 import { formatFCFA } from "@/lib/format";
+import { compressImage } from "@/lib/compress-image";
 
 type FormState = {
   id: number | null;
@@ -25,6 +26,7 @@ type FormState = {
   priceNote: string;
   images: string[];
   featured: boolean;
+  active: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -42,6 +44,7 @@ const EMPTY_FORM: FormState = {
   priceNote: "",
   images: [],
   featured: false,
+  active: true,
 };
 
 export default function AdminDashboard({ initialProducts }: { initialProducts: Product[] }) {
@@ -83,6 +86,7 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
       priceNote: p.priceNote ?? "",
       images: p.images ?? [],
       featured: p.featured,
+      active: p.active,
     });
     setError(null);
     setFormOpen(true);
@@ -121,8 +125,9 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
     setUploading(true);
     setError(null);
     try {
+      const compressed = await compressImage(file);
       const body = new FormData();
-      body.append("file", file);
+      body.append("file", compressed);
       const res = await fetch("/api/admin/upload-image", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Échec de l'envoi de l'image.");
@@ -157,6 +162,7 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
         priceNote: form.priceNote || null,
         images: form.images,
         featured: form.featured,
+        active: form.active,
       };
 
       const res = form.id
@@ -192,6 +198,18 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
     if (!confirm("Supprimer ce produit du catalogue ?")) return;
     await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
     setProducts((list) => list.filter((p) => p.id !== id));
+  }
+
+  async function onToggleActive(p: Product) {
+    const res = await fetch(`/api/admin/products/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: !p.active }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setProducts((list) => list.map((item) => (item.id === p.id ? data.item : item)));
+    }
   }
 
   async function onLogout() {
@@ -366,6 +384,10 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
               <input type="checkbox" className="check" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} />
               Mettre en avant sur la page d&apos;accueil
             </label>
+            <label className="flex items-center gap-2.5 text-sm sm:col-span-2">
+              <input type="checkbox" className="check" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} />
+              En stock (visible sur le site — décoche pour marquer comme épuisé)
+            </label>
           </div>
 
           {error ? <p className="mt-4 text-sm font-medium text-red-600">{error}</p> : null}
@@ -391,7 +413,7 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
 
         <div className="glass-strong mt-4 divide-y divide-line overflow-hidden rounded-[1.5rem]">
           {filtered.map((p) => (
-            <div key={p.id} className="flex items-center gap-4 p-4">
+            <div key={p.id} className={`flex items-center gap-4 p-4 ${!p.active ? "opacity-60" : ""}`}>
               <div className="glass relative h-14 w-14 flex-none overflow-hidden rounded-xl">
                 {p.images?.[0] ? (
                   <Image src={p.images[0]} alt={p.name} fill sizes="56px" className="object-cover" />
@@ -399,9 +421,20 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-ink">{p.name}</p>
-                <p className="text-xs text-muted">{p.subcategoryLabel} · {p.conditionDetail}</p>
+                <p className="text-xs text-muted">
+                  {p.subcategoryLabel} · {p.conditionDetail}
+                  {!p.active ? <span className="ml-1.5 font-semibold text-red-600">· Épuisé</span> : null}
+                </p>
               </div>
               <p className="flex-none font-display text-sm font-bold text-accent">{formatFCFA(p.price)}</p>
+              <button
+                onClick={() => onToggleActive(p)}
+                className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  p.active ? "bg-white/40 text-ink-soft hover:bg-amber-500/15 hover:text-amber-700" : "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
+                }`}
+              >
+                {p.active ? "Marquer épuisé" : "Remettre en stock"}
+              </button>
               <button onClick={() => startEdit(p)} className="grid h-9 w-9 flex-none place-items-center rounded-full hover:bg-white/40" aria-label="Modifier">
                 <Pencil size={15} />
               </button>
