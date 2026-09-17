@@ -5,6 +5,7 @@ import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import MetaPixel from "@/components/meta-pixel";
+import ScrollToTop from "@/components/scroll-to-top";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SiteHeader />
         <main className="min-h-[70vh]">{children}</main>
         <SiteFooter />
+        <ScrollToTop />
       </body>
     </html>
   );
