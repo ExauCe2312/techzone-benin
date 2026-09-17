@@ -8,7 +8,7 @@ export default function SiteFooter() {
   return (
     <footer className="relative mt-20 overflow-hidden bg-night text-paper">
       <div
-        className="pointer-events-none absolute -top-32 left-1/2 h-80 w-[50rem] -translate-x-1/2 rounded-full bg-accent/20 blur-[110px] animate-glass-shift"
+        className="pointer-events-none absolute -top-32 left-1/2 h-80 w-[50rem] -translate-x-1/2 rounded-full bg-accent/12 blur-[110px] animate-glass-shift"
         aria-hidden="true"
       />
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6">

@@ -80,7 +80,7 @@ export default async function HomePage() {
           title={
             <>
               Quatre univers.
-              <span className="text-outline"> Un seul catalogue.</span>
+              <span className="text-muted"> Un seul catalogue.</span>
             </>
           }
           action={
@@ -183,7 +183,7 @@ export default async function HomePage() {
         <Reveal>
           <div className="glass-dark glass-sheen relative overflow-hidden rounded-[2.5rem] px-6 py-14 sm:px-12 lg:px-16">
             <div
-              className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-accent/25 blur-2xl"
+              className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-accent/14 blur-2xl"
               aria-hidden="true"
             />
             <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">

@@ -35,11 +35,11 @@ export default function HomeHero({
   return (
     <section className="relative overflow-hidden bg-night text-paper">
       <div
-        className="pointer-events-none absolute -top-24 left-[10%] h-96 w-96 rounded-full bg-accent/25 blur-[110px] animate-glass-shift"
+        className="pointer-events-none absolute -top-24 left-[10%] h-96 w-96 rounded-full bg-accent/14 blur-[110px] animate-glass-shift"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -bottom-32 right-[5%] h-[26rem] w-[26rem] rounded-full bg-gold/20 blur-[130px] animate-glass-shift"
+        className="pointer-events-none absolute -bottom-32 right-[5%] h-[26rem] w-[26rem] rounded-full bg-gold/12 blur-[130px] animate-glass-shift"
         style={{ animationDelay: "-6s" }}
         aria-hidden="true"
       />
@@ -54,7 +54,7 @@ export default function HomeHero({
           <h1 className="mt-6 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
             Le bon appareil,
             <br />
-            <span className="text-outline-paper">au bon prix.</span>
+            au bon prix.
           </h1>
 
           <p className="mt-6 max-w-md text-[15px] leading-relaxed text-paper/70">

@@ -1,20 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { IBM_Plex_Mono, Space_Grotesk, Syne } from "next/font/google";
+import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 
-const syne = Syne({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["700", "800"],
-  variable: "--font-syne",
-});
-
-const grotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-grotesk",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-manrope",
 });
 
 const plex = IBM_Plex_Mono({
@@ -53,7 +47,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr" className={`${syne.variable} ${grotesk.variable} ${plex.variable}`}>
+    <html lang="fr" className={`${manrope.variable} ${plex.variable}`}>
       <body className="min-h-dvh bg-paper font-sans text-ink antialiased">
         <div className="ambient-mesh" aria-hidden="true" />
         <div className="noise-overlay" aria-hidden="true" />

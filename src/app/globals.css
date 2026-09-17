@@ -10,17 +10,17 @@
   --color-muted: #8d8577;
   --color-line: rgb(23 19 13 / 0.10);
   --color-line-strong: rgb(23 19 13 / 0.22);
-  --color-accent: #ff5b1f;
-  --color-accent-deep: #e0450f;
-  --color-accent-soft: #ffe4d3;
-  --color-night: #120d07;
-  --color-night-soft: #201509;
-  --color-gold: #c98a2f;
+  --color-accent: #e0591f;
+  --color-accent-deep: #b8451a;
+  --color-accent-soft: #fbe2d1;
+  --color-night: #17130d;
+  --color-night-soft: #241a10;
+  --color-gold: #b17a2e;
   --color-whatsapp: #1fb855;
   --color-whatsapp-deep: #12923e;
 
-  --font-display: var(--font-syne), "Arial Black", sans-serif;
-  --font-sans: var(--font-grotesk), system-ui, sans-serif;
+  --font-display: var(--font-manrope), system-ui, sans-serif;
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
   --animate-marquee: marquee 32s linear infinite;
@@ -118,9 +118,14 @@ body {
     0 14px 30px -18px rgb(23 19 13 / 0.28);
 }
 
-/* Verre sombre — sur fond "night" (hero, footer, sections sombres) */
+/* Verre sombre — sur fond "night" (hero, footer, sections sombres).
+   Le dégradé translucide est posé sur une base --color-night pleine :
+   ainsi ce panneau reste toujours lisible, même utilisé hors d'une
+   section déjà sombre (au lieu de laisser transparaître un fond clair). */
 .glass-dark {
-  background: linear-gradient(155deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.03));
+  background:
+    linear-gradient(155deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.03)),
+    var(--color-night);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid rgb(255 255 255 / 0.14);
@@ -182,15 +187,6 @@ body {
 
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
-
-.text-outline {
-  -webkit-text-stroke: 1.5px rgb(23 19 13 / 0.32);
-  color: transparent;
-}
-.text-outline-paper {
-  -webkit-text-stroke: 1.5px rgb(250 247 241 / 0.4);
-  color: transparent;
-}
 
 .hero-grid-bg {
   background-image:
