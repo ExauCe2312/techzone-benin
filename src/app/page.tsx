@@ -7,6 +7,7 @@ import { Reveal, SectionHeading } from "@/components/ui";
 import { getCategoryCounts, getFeaturedProducts, getNewArrivals } from "@/lib/data";
 import { CATEGORIES, STORE } from "@/lib/constants";
 import { whatsappCustomLink } from "@/lib/whatsapp";
+import WhatsAppContactLink from "@/components/whatsapp-contact-link";
 
 // force-dynamic plutôt qu'une regénération statique : sur le plan gratuit
 // Supabase, la base peut se mettre en pause après une période d'inactivité,
@@ -198,15 +199,13 @@ export default async function HomePage() {
                   {STORE.name} répond sur WhatsApp au {STORE.whatsappDisplay} — {STORE.hours}.
                 </p>
               </div>
-              <a
+              <WhatsAppContactLink
                 href={whatsappCustomLink("Bonjour Techzone Bénin, j'ai une question.")}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="btn-whatsapp flex-none px-7 py-3.5 text-sm font-semibold"
               >
                 <MessageCircle size={17} />
                 Ouvrir la discussion
-              </a>
+              </WhatsAppContactLink>
             </div>
           </div>
         </Reveal>

@@ -29,7 +29,7 @@ export default function ProductActions({ product }: { product: Product }) {
       <p className="mt-4 text-sm leading-relaxed text-ink-soft">{product.description}</p>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <WhatsAppButton productName={product.name} size="lg" className="flex-1" />
+        <WhatsAppButton productName={product.name} price={product.price} category={product.subcategoryLabel} size="lg" className="flex-1" />
       </div>
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted">

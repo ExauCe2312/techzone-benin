@@ -72,6 +72,7 @@ export const STORE = {
   name: "TechZone Bénin",
   whatsapp: "+22963234114", // format international sans espaces, pour les liens wa.me
   whatsappDisplay: "+229 63 23 41 14",
+  facebookUrl: "https://www.facebook.com/share/19JpNM2g5w/",
   address: "Abomey-Calavi, Bénin",
   hours: "Lun – Sam · 8h – 22h",
 };

@@ -4,6 +4,7 @@ import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
+import MetaPixel from "@/components/meta-pixel";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr" className={`${manrope.variable} ${plex.variable}`}>
       <body className="min-h-dvh bg-paper font-sans text-ink antialiased">
+        <MetaPixel />
         <div className="ambient-mesh" aria-hidden="true" />
         <div className="noise-overlay" aria-hidden="true" />
         <SiteHeader />

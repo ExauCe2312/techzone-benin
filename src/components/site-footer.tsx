@@ -3,6 +3,8 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { CATEGORIES, STORE } from "@/lib/constants";
 import { whatsappCustomLink } from "@/lib/whatsapp";
+import WhatsAppContactLink from "@/components/whatsapp-contact-link";
+import { FacebookBadge, WhatsAppBadge } from "@/components/social-icons";
 
 export default function SiteFooter() {
   return (
@@ -26,6 +28,25 @@ export default function SiteFooter() {
               Catalogue téléphones, ordinateurs, tablettes & accessoires. Toutes les commandes se
               concluent directement sur WhatsApp.
             </p>
+
+            <div className="mt-5 flex items-center gap-2.5">
+              <WhatsAppContactLink
+                href={whatsappCustomLink("Bonjour Techzone Bénin !")}
+                className="group"
+              >
+                <span className="sr-only">TechZone Bénin sur WhatsApp</span>
+                <WhatsAppBadge />
+              </WhatsAppContactLink>
+              <a
+                href={STORE.facebookUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group"
+              >
+                <span className="sr-only">TechZone Bénin sur Facebook</span>
+                <FacebookBadge />
+              </a>
+            </div>
           </div>
 
           <div>
@@ -52,15 +73,13 @@ export default function SiteFooter() {
 
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-paper/50">Une question ?</p>
-            <a
+            <WhatsAppContactLink
               href={whatsappCustomLink("Bonjour Techzone Bénin, j'ai une question sur un produit.")}
-              target="_blank"
-              rel="noopener noreferrer"
               className="btn-whatsapp mt-4 inline-flex px-5 py-2.5 text-sm font-semibold"
             >
               <MessageCircle size={16} />
               Écrire sur WhatsApp
-            </a>
+            </WhatsAppContactLink>
           </div>
         </div>
 

@@ -109,6 +109,20 @@ pouvez toujours la corriger à la main avant d'enregistrer.
 - Changez `ADMIN_PASSWORD` si vous soupçonnez qu'il a fuité ; pensez aussi à régénérer
   `ADMIN_SESSION_SECRET` pour invalider toutes les sessions en cours.
 
+## Suivi des conversions Meta Ads (optionnel)
+
+Si tu fais de la pub sur Facebook/Instagram, ajoute `NEXT_PUBLIC_META_PIXEL_ID`
+(trouvable dans Meta Events Manager > ton pixel > Paramètres) dans tes
+variables d'environnement Netlify, puis redéploie avec **Clear cache and
+deploy site**. Une fois configuré :
+- Le Pixel se charge automatiquement sur tout le site (suivi des visites).
+- Chaque clic sur un bouton WhatsApp déclenche l'événement standard **Contact**
+  (avec le nom du produit et son prix quand c'est pertinent), que tu peux
+  choisir directement comme objectif d'optimisation dans le gestionnaire de
+  publicités Meta — sans configuration supplémentaire côté Meta.
+- Sans `NEXT_PUBLIC_META_PIXEL_ID`, rien ne se charge : le site fonctionne
+  normalement, juste sans suivi.
+
 ## Notes sur les données importées
 
 - Le fichier catalogue contenait deux tablettes (Samsung Tab A11, Redmi Pad 2) classées

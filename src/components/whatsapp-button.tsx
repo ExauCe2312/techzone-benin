@@ -2,13 +2,18 @@
 
 import { MessageCircle } from "lucide-react";
 import { whatsappOrderLink } from "@/lib/whatsapp";
+import { trackWhatsAppContact } from "@/lib/meta-pixel";
 
 export default function WhatsAppButton({
   productName,
+  price,
+  category,
   className = "",
   size = "md",
 }: {
   productName: string;
+  price?: number;
+  category?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
 }) {
@@ -23,7 +28,10 @@ export default function WhatsAppButton({
       href={whatsappOrderLink(productName)}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        trackWhatsAppContact({ productName, price, category });
+      }}
       className={`btn-whatsapp font-semibold ${sizes[size]} ${className}`}
     >
       <MessageCircle size={size === "lg" ? 20 : 16} strokeWidth={2.2} />

@@ -10,6 +10,7 @@ import { STORE } from "@/lib/constants";
 import { whatsappCustomLink } from "@/lib/whatsapp";
 import CategoryPlaceholder from "@/components/category-placeholder";
 import WhatsAppButton from "@/components/whatsapp-button";
+import WhatsAppContactLink from "@/components/whatsapp-contact-link";
 
 export function Marquee({ items }: { items: string[] }) {
   const loop = [...items, ...items];
@@ -70,15 +71,13 @@ export default function HomeHero({
               Voir le catalogue
               <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
             </Link>
-            <a
+            <WhatsAppContactLink
               href={whatsappCustomLink("Bonjour Techzone Bénin, j'aimerais des conseils sur un produit.")}
-              target="_blank"
-              rel="noopener noreferrer"
               className="btn-whatsapp px-6 py-3.5 text-sm font-semibold"
             >
               <MessageCircle size={16} />
               Discuter sur WhatsApp
-            </a>
+            </WhatsAppContactLink>
           </div>
 
           <p className="mt-8 text-xs text-paper/45">{STORE.address} · {STORE.hours}</p>
@@ -105,7 +104,7 @@ export default function HomeHero({
                 <p className="mt-1 font-display text-2xl font-extrabold text-accent">
                   {formatFCFA(spotlight.price)}
                 </p>
-                <WhatsAppButton productName={spotlight.name} className="mt-3 w-full" />
+                <WhatsAppButton productName={spotlight.name} price={spotlight.price} category={spotlight.category} className="mt-3 w-full" />
               </div>
             </div>
           </motion.div>

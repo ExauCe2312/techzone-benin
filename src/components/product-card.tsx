@@ -54,7 +54,7 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
               <span className="ml-1 text-xs font-medium text-muted">{product.priceNote}</span>
             ) : null}
           </p>
-          <WhatsAppButton productName={product.name} size="sm" className="w-full" />
+          <WhatsAppButton productName={product.name} price={product.price} category={product.subcategoryLabel} size="sm" className="w-full" />
         </div>
       </GlassPanel>
     </motion.div>
