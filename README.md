@@ -123,6 +123,24 @@ deploy site**. Une fois configuré :
 - Sans `NEXT_PUBLIC_META_PIXEL_ID`, rien ne se charge : le site fonctionne
   normalement, juste sans suivi.
 
+## Assistant catalogue (chat) — nouvel onglet dans l'admin
+
+Sur `/admin`, un onglet **Assistant IA** permet de donner une instruction en
+langage naturel à la place du formulaire classique — ex. *"Ajoute un iPhone 11
+64Go à 185000 FCFA, neuf"* ou *"Change le prix du Redmi Note 14 Pro à
+95000 FCFA"*. Aucune variable d'environnement supplémentaire : il réutilise
+`GEMINI_API_KEY`.
+
+Ce qu'il fait, dans l'ordre :
+1. Si l'instruction concerne un produit dont les vraies caractéristiques
+   techniques seraient utiles (écran, puce, appareil photo, batterie...), il
+   cherche sur le web et les résume brièvement.
+2. S'il s'agit de modifier un produit existant, il le retrouve d'abord dans
+   ton catalogue (jamais par supposition).
+3. Il **propose** l'action (résumé clair) — rien n'est enregistré tant que tu
+   n'as pas appuyé sur **Appliquer**. S'il n'est pas sûr d'avoir trouvé le bon
+   produit, il pose une question plutôt que de deviner.
+
 ## Notes sur les données importées
 
 - Le fichier catalogue contenait deux tablettes (Samsung Tab A11, Redmi Pad 2) classées

@@ -2,32 +2,7 @@
 // Appelé uniquement depuis une route serveur protégée — la clé API ne
 // transite jamais côté navigateur.
 
-const FEW_SHOT = [
-  {
-    name: "Redmi A5 128+4",
-    category: "Smartphones",
-    condition: "Neuf",
-    notes: "128 Go de stockage, 4 Go de RAM",
-    description:
-      "Avec 128 Go de stockage et 4 Go de RAM, ce smartphone offre un espace confortable pour vos applications et fichiers.",
-  },
-  {
-    name: "HP ProBook 450 G3",
-    category: "Ordinateurs portables occasion 10/10",
-    condition: "Occasion 10/10",
-    notes: "écran 15,6 pouces, Intel Core i5, 6 Go RAM, HDD 1 To, fréquence 2,40 GHz, autonomie 3h",
-    description:
-      "Écran 15,6\", Intel Core i5, 6 Go RAM, HDD 1 To, fréquence 2,40 GHz. Autonomie annoncée : 3h.",
-  },
-  {
-    name: "PowerBank Oraimo 20 000 mAh Original",
-    category: "Chargeurs & powerbanks",
-    condition: "Neuf",
-    notes: "batterie externe originale Oraimo, 20 000 mAh",
-    description:
-      "PowerBank Oraimo original de 20 000 mAh, pratique pour recharger vos appareils lors de vos déplacements.",
-  },
-];
+import { DESCRIPTION_STYLE_RULES, formatFewShotExamples } from "@/lib/catalog-style";
 
 export type GenerateDescriptionInput = {
   name: string;
@@ -41,23 +16,14 @@ export async function generateDescription(input: GenerateDescriptionInput): Prom
   if (!apiKey) throw new Error("GEMINI_API_KEY est requis (voir .env.example)");
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-  const examples = FEW_SHOT.map(
-    (ex) =>
-      `Produit : ${ex.name}\nCatégorie : ${ex.category}\nÉtat : ${ex.condition}\nNotes : ${ex.notes}\nDescription attendue : ${ex.description}`,
-  ).join("\n\n");
-
   const prompt = `Tu rédiges des fiches produit courtes pour le catalogue WhatsApp de TechZone Bénin, une boutique d'informatique et de téléphonie à Abomey-Calavi.
 
 Style à respecter strictement (voir exemples ci-dessous) :
-- 1 à 2 phrases, jamais plus.
-- Ton pratique et factuel, jamais publicitaire ou grandiloquent.
-- Pas d'émoji, pas de markdown, pas de guillemets autour du texte.
-- Ne répète pas le prix ni le nom du produit dans la phrase.
-- Si des caractéristiques techniques sont données dans les notes, les intégrer naturellement.
+${DESCRIPTION_STYLE_RULES}
 
 Exemples tirés du catalogue existant :
 
-${examples}
+${formatFewShotExamples()}
 
 Nouveau produit à décrire :
 Produit : ${input.name}
@@ -97,8 +63,6 @@ Réponds uniquement avec la description, sans rien d'autre.`;
   const data = await res.json();
   const parts: Array<{ text?: string; thought?: boolean }> =
     data?.candidates?.[0]?.content?.parts ?? [];
-  // Sur les modèles qui pensent avant de répondre, certaines "parts" ne sont que des
-  // brouillons de raisonnement (thought: true) — on ne garde que la réponse finale.
   const text = parts
     .filter((p) => !p.thought && p.text)
     .map((p) => p.text)

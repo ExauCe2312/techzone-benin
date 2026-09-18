@@ -200,3 +200,45 @@ export async function slugExists(slug: string): Promise<boolean> {
   const rows = await db.select({ id: products.id }).from(products).where(eq(products.slug, slug)).limit(1);
   return rows.length > 0;
 }
+
+/** Recherche large utilisée par l'agent IA pour retrouver un produit existant
+ * à partir d'une description en langage naturel (nom, marque, catégorie). */
+export type AgentCatalogHit = {
+  id: number;
+  slug: string;
+  name: string;
+  brand: string;
+  category: string;
+  subcategory: string;
+  subcategoryLabel: string;
+  condition: string;
+  conditionDetail: string;
+  price: number;
+  description: string;
+  active: boolean;
+};
+
+export async function searchCatalogForAgent(query: string, limit = 8): Promise<AgentCatalogHit[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const like = `%${q}%`;
+  return db
+    .select({
+      id: products.id,
+      slug: products.slug,
+      name: products.name,
+      brand: products.brand,
+      category: products.category,
+      subcategory: products.subcategory,
+      subcategoryLabel: products.subcategoryLabel,
+      condition: products.condition,
+      conditionDetail: products.conditionDetail,
+      price: products.price,
+      description: products.description,
+      active: products.active,
+    })
+    .from(products)
+    .where(or(ilike(products.name, like), ilike(products.brand, like))!)
+    .orderBy(desc(products.createdAt))
+    .limit(limit);
+}

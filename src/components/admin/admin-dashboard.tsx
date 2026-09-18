@@ -10,6 +10,7 @@ import type { Product } from "@/db/schema";
 import { CATEGORIES, CONDITIONS, SUBCATEGORIES, type CategorySlug } from "@/lib/constants";
 import { formatFCFA } from "@/lib/format";
 import { compressImage } from "@/lib/compress-image";
+import CatalogAgent from "@/components/admin/catalog-agent";
 
 type FormState = {
   id: number | null;
@@ -57,6 +58,7 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"produits" | "assistant">("produits");
 
   const subOptions = SUBCATEGORIES[form.category] ?? [];
   const filtered = useMemo(
@@ -218,6 +220,13 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
     router.refresh();
   }
 
+  function handleAgentProductChange(product: Product) {
+    setProducts((list) => {
+      const exists = list.some((p) => p.id === product.id);
+      return exists ? list.map((p) => (p.id === product.id ? product : p)) : [product, ...list];
+    });
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -243,7 +252,33 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
         </div>
       </div>
 
-      {formOpen ? (
+      <div className="glass-pill mt-6 inline-flex gap-1 rounded-full p-1">
+        <button
+          onClick={() => setTab("produits")}
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === "produits" ? "bg-ink text-paper" : "text-ink-soft"
+          }`}
+        >
+          Produits
+        </button>
+        <button
+          onClick={() => setTab("assistant")}
+          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            tab === "assistant" ? "bg-ink text-paper" : "text-ink-soft"
+          }`}
+        >
+          <Sparkles size={13} />
+          Assistant IA
+        </button>
+      </div>
+
+      {tab === "assistant" ? (
+        <div className="mt-6">
+          <CatalogAgent onProductChange={handleAgentProductChange} />
+        </div>
+      ) : (
+        <>
+          {formOpen ? (
         <div className="glass-strong glass-sheen mt-8 rounded-[1.75rem] p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-bold">
@@ -446,6 +481,8 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
           {filtered.length === 0 ? <p className="p-6 text-center text-sm text-muted">Aucun produit.</p> : null}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
