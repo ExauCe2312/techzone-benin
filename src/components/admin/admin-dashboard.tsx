@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -53,6 +53,16 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Bloque le défilement de l'arrière-plan tant que la pop-up est ouverte.
+  useEffect(() => {
+    if (!formOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [formOpen]);
   const [generating, setGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -123,17 +133,24 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
     }
   }
 
-  async function onUploadImage(file: File) {
+  async function onUploadImages(files: FileList | File[]) {
+    const list = Array.from(files);
+    if (list.length === 0) return;
     setUploading(true);
     setError(null);
     try {
-      const compressed = await compressImage(file);
-      const body = new FormData();
-      body.append("file", compressed);
-      const res = await fetch("/api/admin/upload-image", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de l'envoi de l'image.");
-      setForm((f) => ({ ...f, images: [...f.images, data.url] }));
+      // Envoi séquentiel (pas en parallèle) : plus fiable sur une connexion
+      // mobile, et évite de saturer la route d'upload si plusieurs photos
+      // sont sélectionnées d'un coup.
+      for (const file of list) {
+        const compressed = await compressImage(file);
+        const body = new FormData();
+        body.append("file", compressed);
+        const res = await fetch("/api/admin/upload-image", { method: "POST", body });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Échec de l'envoi de l'image.");
+        setForm((f) => ({ ...f, images: [...f.images, data.url] }));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue.");
     } finally {
@@ -279,7 +296,13 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
       ) : (
         <>
           {formOpen ? (
-        <div className="glass-strong glass-sheen mt-8 rounded-[1.75rem] p-6">
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6">
+          <div
+            className="fixed inset-0 bg-night/55 backdrop-blur-sm"
+            onClick={() => setFormOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="glass-strong glass-sheen relative my-4 w-full max-w-2xl rounded-[1.75rem] p-6 sm:my-10">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-bold">
               {form.id ? "Modifier le produit" : "Nouveau produit"}
@@ -403,11 +426,11 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
                     disabled={uploading}
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) onUploadImage(file);
+                      if (e.target.files?.length) onUploadImages(e.target.files);
                       e.target.value = "";
                     }}
                   />
@@ -434,6 +457,7 @@ export default function AdminDashboard({ initialProducts }: { initialProducts: P
             <button onClick={() => setFormOpen(false)} className="rounded-full border border-line-strong px-6 py-2.5 text-sm font-semibold text-ink-soft">
               Annuler
             </button>
+          </div>
           </div>
         </div>
       ) : null}

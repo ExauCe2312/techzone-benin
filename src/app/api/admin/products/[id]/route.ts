@@ -35,7 +35,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const product = await updateProduct(productId, parsed.data);
   if (!product) return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
-  revalidateTag("products", "max");
+  revalidateTag("products", { expire: 0 });
   return NextResponse.json({ item: product });
 }
 
@@ -46,6 +46,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Identifiant invalide." }, { status: 400 });
   }
   await deleteProduct(productId);
-  revalidateTag("products", "max");
+  revalidateTag("products", { expire: 0 });
   return NextResponse.json({ ok: true });
 }

@@ -242,3 +242,37 @@ export async function searchCatalogForAgent(query: string, limit = 8): Promise<A
     .orderBy(desc(products.createdAt))
     .limit(limit);
 }
+
+/** Échantillon de produits qui pourraient bénéficier d'une amélioration —
+ * utilisé par les suggestions proactives de l'agent (jamais appliqué sans
+ * validation de l'admin). */
+export async function getProductsNeedingAttention(limit = 10): Promise<AgentCatalogHit[]> {
+  return db
+    .select({
+      id: products.id,
+      slug: products.slug,
+      name: products.name,
+      brand: products.brand,
+      category: products.category,
+      subcategory: products.subcategory,
+      subcategoryLabel: products.subcategoryLabel,
+      condition: products.condition,
+      conditionDetail: products.conditionDetail,
+      price: products.price,
+      description: products.description,
+      active: products.active,
+    })
+    .from(products)
+    .where(
+      and(
+        eq(products.active, true),
+        or(
+          sql`length(${products.description}) < 40`,
+          and(eq(products.condition, "occasion"), sql`${products.warranty} is null`),
+          sql`jsonb_array_length(${products.images}) = 0`,
+        )!,
+      ),
+    )
+    .orderBy(desc(products.createdAt))
+    .limit(limit);
+}

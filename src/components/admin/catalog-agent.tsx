@@ -100,10 +100,18 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
         <span className="grid h-8 w-8 place-items-center rounded-full bg-accent/15 text-accent">
           <Sparkles size={15} />
         </span>
-        <div>
+        <div className="flex-1">
           <p className="text-sm font-semibold text-ink">Assistant catalogue</p>
           <p className="text-xs text-muted">Décris ce que tu veux ajouter ou modifier, en une phrase.</p>
         </div>
+        <button
+          onClick={() => send("Analyse mon catalogue et propose-moi une amélioration concrète sur un produit, avec ton explication.")}
+          disabled={loading}
+          className="glass-pill inline-flex flex-none items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50"
+        >
+          <Sparkles size={12} />
+          Suggestion
+        </button>
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto py-4">
@@ -125,7 +133,7 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[85%] ${m.role === "user" ? "" : "w-full"}`}>
               <div
-                className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                className={`whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   m.role === "user" ? "bg-ink text-paper" : "glass text-ink-soft"
                 }`}
               >

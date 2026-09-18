@@ -4,7 +4,7 @@
 
 import { CATEGORIES, SUBCATEGORIES, type CategorySlug } from "@/lib/constants";
 import { DESCRIPTION_STYLE_RULES, formatFewShotExamples } from "@/lib/catalog-style";
-import { searchCatalogForAgent } from "@/lib/data";
+import { searchCatalogForAgent, getProductsNeedingAttention } from "@/lib/data";
 
 export type AgentMessage = { role: "user" | "model"; text: string };
 
@@ -125,6 +125,12 @@ const TOOLS = [
     },
   },
   {
+    name: "find_products_to_improve",
+    description:
+      "Retourne un échantillon de produits qui pourraient bénéficier d'une amélioration (description trop courte, garantie manquante pour un article d'occasion, aucune photo...). À utiliser quand l'utilisateur demande une suggestion ou une idée d'amélioration, sans préciser de produit.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
     name: "propose_create_product",
     description: "Propose l'ajout d'un nouveau produit au catalogue (ne l'enregistre pas directement — l'utilisateur doit confirmer).",
     parameters: {
@@ -224,6 +230,8 @@ ${formatFewShotExamples()}
 Règles importantes :
 - Pour AJOUTER un produit : utilise propose_create_product. Si des caractéristiques réelles ont été trouvées par recherche web (fournies ci-dessous si disponibles), intègre-les dans la description sans surcharger.
 - Pour MODIFIER un produit existant : utilise D'ABORD search_catalog pour le retrouver et obtenir son id exact, puis propose_update_product avec cet id. Ne devine jamais un id.
+- Si l'utilisateur demande une suggestion ou une idée d'amélioration sans préciser de produit, utilise find_products_to_improve, choisis UN seul produit pertinent parmi les résultats, puis propose_update_product pour lui.
+- Avant TOUT appel à propose_create_product ou propose_update_product, écris d'abord une ou deux phrases de texte expliquant clairement ce que tu proposes et pourquoi (pas seulement pour les suggestions proactives — à chaque fois). L'utilisateur doit comprendre le "pourquoi" avant de valider.
 - Si plusieurs produits correspondent et que ce n'est pas clair, NE PROPOSE RIEN : réponds en texte simple pour demander une précision.
 - Si l'instruction est juste une question (pas une action), réponds normalement en texte, sans appeler propose_create_product ni propose_update_product.
 - N'appelle jamais deux fois propose_create_product ou propose_update_product dans la même conversation pour la même chose.
@@ -276,6 +284,9 @@ ${research ? `Caractéristiques trouvées par recherche web pour cette instructi
     if (terminal) {
       const call = terminal.functionCall!;
       const args = call.args as Record<string, unknown>;
+      // Le modèle explique généralement son geste dans une part texte à côté
+      // de l'appel d'outil — on la garde comme explication affichée à l'utilisateur.
+      const explanation = extractText(data);
 
       if (call.name === "propose_create_product") {
         const category = String(args.category ?? "");
@@ -297,7 +308,7 @@ ${research ? `Caractéristiques trouvées par recherche web pour cette instructi
           },
           summary: buildCreateSummary(args),
         };
-        return { reply: action.summary, proposedAction: action };
+        return { reply: explanation ? `${explanation}\n\n${action.summary}` : action.summary, proposedAction: action };
       }
 
       // propose_update_product
@@ -334,7 +345,7 @@ ${research ? `Caractéristiques trouvées par recherche web pour cette instructi
         fields,
         summary: buildUpdateSummary(args, productName),
       };
-      return { reply: action.summary, proposedAction: action };
+      return { reply: explanation ? `${explanation}\n\n${action.summary}` : action.summary, proposedAction: action };
     }
 
     // Sinon : exécute les search_catalog demandés et poursuit la boucle.
@@ -345,6 +356,15 @@ ${research ? `Caractéristiques trouvées par recherche web pour cette instructi
       if (call.name === "search_catalog") {
         const query = String((call.args as Record<string, unknown>).query ?? "");
         const hits = await searchCatalogForAgent(query);
+        responseParts.push({
+          functionResponse: {
+            id: call.id,
+            name: call.name,
+            response: { results: hits },
+          },
+        });
+      } else if (call.name === "find_products_to_improve") {
+        const hits = await getProductsNeedingAttention();
         responseParts.push({
           functionResponse: {
             id: call.id,
