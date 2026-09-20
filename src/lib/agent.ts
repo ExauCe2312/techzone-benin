@@ -38,7 +38,7 @@ export type ProposedAction = ProposedCreate | ProposedUpdate;
 
 export type AgentResult = {
   reply: string;
-  proposedAction?: ProposedAction;
+  proposedActions?: ProposedAction[];
 };
 
 function requireApiKey(): string {
@@ -202,6 +202,72 @@ function buildUpdateSummary(args: Record<string, unknown>, productName: string):
   return `Modifier "${productName}" : ${changed || "aucun changement précisé"}`;
 }
 
+async function buildProposedAction(
+  call: { name: string; args: Record<string, unknown> },
+): Promise<ProposedAction | null> {
+  const args = call.args;
+
+  if (call.name === "propose_create_product") {
+    const category = String(args.category ?? "");
+    const subcategory = String(args.subcategory ?? "");
+    return {
+      type: "create",
+      fields: {
+        name: String(args.name ?? ""),
+        brand: String(args.brand ?? ""),
+        category,
+        subcategory,
+        subcategoryLabel: subLabel(category, subcategory),
+        condition: args.condition === "occasion" ? "occasion" : "neuf",
+        conditionDetail: String(args.conditionDetail ?? "Neuf"),
+        warranty: args.warranty ? String(args.warranty) : null,
+        description: String(args.description ?? ""),
+        price: Number(args.price ?? 0),
+        priceNote: args.priceNote ? String(args.priceNote) : null,
+      },
+      summary: buildCreateSummary(args),
+    };
+  }
+
+  if (call.name === "propose_update_product") {
+    const productId = Number(args.productId);
+    const fields: Partial<ProposedCreate["fields"]> = {};
+    if (args.name) fields.name = String(args.name);
+    if (args.brand) fields.brand = String(args.brand);
+    if (args.category) fields.category = String(args.category);
+    if (args.subcategory) {
+      fields.subcategory = String(args.subcategory);
+      fields.subcategoryLabel = subLabel(String(args.category ?? ""), String(args.subcategory));
+    }
+    if (args.condition) fields.condition = args.condition === "occasion" ? "occasion" : "neuf";
+    if (args.conditionDetail) fields.conditionDetail = String(args.conditionDetail);
+    if (args.warranty) fields.warranty = String(args.warranty);
+    if (args.description) fields.description = String(args.description);
+    if (args.price != null) fields.price = Number(args.price);
+    if (args.priceNote) fields.priceNote = String(args.priceNote);
+
+    // Retrouve le nom actuel du produit pour un résumé lisible.
+    let productName = `#${productId}`;
+    try {
+      const hits = await searchCatalogForAgent(String(args.name ?? ""), 20);
+      const found = hits.find((h) => h.id === productId);
+      if (found) productName = found.name;
+    } catch {
+      // pas bloquant pour le résumé
+    }
+
+    return {
+      type: "update",
+      productId,
+      productName,
+      fields,
+      summary: buildUpdateSummary(args, productName),
+    };
+  }
+
+  return null;
+}
+
 export async function runCatalogAgent(message: string, history: AgentMessage[]): Promise<AgentResult> {
   const apiKey = requireApiKey();
   const model = getModel();
@@ -230,8 +296,9 @@ ${formatFewShotExamples()}
 Règles importantes :
 - Pour AJOUTER un produit : utilise propose_create_product. Si des caractéristiques réelles ont été trouvées par recherche web (fournies ci-dessous si disponibles), intègre-les dans la description sans surcharger.
 - Pour MODIFIER un produit existant : utilise D'ABORD search_catalog pour le retrouver et obtenir son id exact, puis propose_update_product avec cet id. Ne devine jamais un id.
-- Si l'utilisateur demande une suggestion ou une idée d'amélioration sans préciser de produit, utilise find_products_to_improve, choisis UN seul produit pertinent parmi les résultats, puis propose_update_product pour lui.
-- Avant TOUT appel à propose_create_product ou propose_update_product, écris d'abord une ou deux phrases de texte expliquant clairement ce que tu proposes et pourquoi (pas seulement pour les suggestions proactives — à chaque fois). L'utilisateur doit comprendre le "pourquoi" avant de valider.
+- Si l'utilisateur demande une suggestion ou une idée d'amélioration sans préciser de produit, utilise find_products_to_improve, puis choisis UN produit pertinent parmi les résultats (ou PLUSIEURS s'il demande explicitement plusieurs suggestions — dans ce cas, appelle propose_update_product une fois PAR produit choisi, dans le même tour).
+- Idem pour une demande explicite de "plusieurs" ajouts/modifications à la fois : appelle propose_create_product / propose_update_product autant de fois que nécessaire dans le même tour, un appel par produit — n'attends pas une validation avant de proposer le suivant.
+- Avant ces appels, écris un texte qui explique clairement, pour CHAQUE produit proposé, ce que tu changes et pourquoi (une à deux phrases par produit si plusieurs). L'utilisateur doit comprendre le "pourquoi" avant de valider.
 - Si plusieurs produits correspondent et que ce n'est pas clair, NE PROPOSE RIEN : réponds en texte simple pour demander une précision.
 - Si l'instruction est juste une question (pas une action), réponds normalement en texte, sans appeler propose_create_product ni propose_update_product.
 - N'appelle jamais deux fois propose_create_product ou propose_update_product dans la même conversation pour la même chose.
@@ -276,76 +343,27 @@ ${research ? `Caractéristiques trouvées par recherche web pour cette instructi
       return { reply: text || "Je n'ai pas compris, peux-tu reformuler ?" };
     }
 
-    // Les outils terminaux (propose_*) arrêtent la boucle immédiatement.
-    const terminal = functionCalls.find(
+    // Les outils terminaux (propose_*) arrêtent la boucle immédiatement —
+    // mais TOUS ceux présents dans ce tour sont collectés (pas seulement le premier),
+    // pour permettre plusieurs propositions d'un coup.
+    const terminalCalls = functionCalls.filter(
       (p) => p.functionCall!.name === "propose_create_product" || p.functionCall!.name === "propose_update_product",
     );
 
-    if (terminal) {
-      const call = terminal.functionCall!;
-      const args = call.args as Record<string, unknown>;
+    if (terminalCalls.length > 0) {
       // Le modèle explique généralement son geste dans une part texte à côté
-      // de l'appel d'outil — on la garde comme explication affichée à l'utilisateur.
+      // des appels d'outils — on la garde comme explication affichée à l'utilisateur.
       const explanation = extractText(data);
-
-      if (call.name === "propose_create_product") {
-        const category = String(args.category ?? "");
-        const subcategory = String(args.subcategory ?? "");
-        const action: ProposedCreate = {
-          type: "create",
-          fields: {
-            name: String(args.name ?? ""),
-            brand: String(args.brand ?? ""),
-            category,
-            subcategory,
-            subcategoryLabel: subLabel(category, subcategory),
-            condition: args.condition === "occasion" ? "occasion" : "neuf",
-            conditionDetail: String(args.conditionDetail ?? "Neuf"),
-            warranty: args.warranty ? String(args.warranty) : null,
-            description: String(args.description ?? ""),
-            price: Number(args.price ?? 0),
-            priceNote: args.priceNote ? String(args.priceNote) : null,
-          },
-          summary: buildCreateSummary(args),
-        };
-        return { reply: explanation ? `${explanation}\n\n${action.summary}` : action.summary, proposedAction: action };
+      const actions: ProposedAction[] = [];
+      for (const term of terminalCalls) {
+        const action = await buildProposedAction(term.functionCall!);
+        if (action) actions.push(action);
       }
-
-      // propose_update_product
-      const productId = Number(args.productId);
-      const fields: Partial<ProposedCreate["fields"]> = {};
-      if (args.name) fields.name = String(args.name);
-      if (args.brand) fields.brand = String(args.brand);
-      if (args.category) fields.category = String(args.category);
-      if (args.subcategory) {
-        fields.subcategory = String(args.subcategory);
-        fields.subcategoryLabel = subLabel(String(args.category ?? ""), String(args.subcategory));
-      }
-      if (args.condition) fields.condition = args.condition === "occasion" ? "occasion" : "neuf";
-      if (args.conditionDetail) fields.conditionDetail = String(args.conditionDetail);
-      if (args.warranty) fields.warranty = String(args.warranty);
-      if (args.description) fields.description = String(args.description);
-      if (args.price != null) fields.price = Number(args.price);
-      if (args.priceNote) fields.priceNote = String(args.priceNote);
-
-      // Retrouve le nom actuel du produit pour un résumé lisible.
-      let productName = `#${productId}`;
-      try {
-        const hits = await searchCatalogForAgent(String(args.name ?? ""), 20);
-        const found = hits.find((h) => h.id === productId);
-        if (found) productName = found.name;
-      } catch {
-        // pas bloquant pour le résumé
-      }
-
-      const action: ProposedUpdate = {
-        type: "update",
-        productId,
-        productName,
-        fields,
-        summary: buildUpdateSummary(args, productName),
+      const summaries = actions.map((a) => a.summary).join("\n");
+      return {
+        reply: explanation ? `${explanation}\n\n${summaries}` : summaries,
+        proposedActions: actions,
       };
-      return { reply: explanation ? `${explanation}\n\n${action.summary}` : action.summary, proposedAction: action };
     }
 
     // Sinon : exécute les search_catalog demandés et poursuit la boucle.

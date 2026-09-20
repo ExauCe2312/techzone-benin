@@ -6,24 +6,26 @@ import type { Product } from "@/db/schema";
 import type { ProposedAction } from "@/lib/agent";
 import { formatFCFA } from "@/lib/format";
 
+type ActionStatus = "pending" | "applied" | "dismissed";
+
 type ChatMessage = {
   role: "user" | "model";
   text: string;
-  proposedAction?: ProposedAction;
-  status?: "pending" | "applied" | "dismissed";
+  proposedActions?: ProposedAction[];
+  statuses?: ActionStatus[]; // même index que proposedActions
 };
 
 const SUGGESTIONS = [
   "Ajoute un iPhone 11 64Go à 185000 FCFA, neuf",
   "Change le prix du Redmi Note 14 Pro à 95000 FCFA",
-  "Complète les caractéristiques du Tecno Spark 50",
+  "Propose-moi 3 améliorations sur des fiches produit existantes",
 ];
 
 export default function CatalogAgent({ onProductChange }: { onProductChange: (product: Product) => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [applyingAt, setApplyingAt] = useState<number | null>(null);
+  const [applyingAt, setApplyingAt] = useState<string | null>(null); // `${msgIndex}:${actionIndex}`
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -47,13 +49,14 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
       });
       const data = await res.json();
       if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Erreur de l'agent.");
+      const actions: ProposedAction[] | undefined = data.proposedActions;
       setMessages((prev) => [
         ...prev,
         {
           role: "model",
           text: data.reply,
-          proposedAction: data.proposedAction,
-          status: data.proposedAction ? "pending" : undefined,
+          proposedActions: actions,
+          statuses: actions ? actions.map(() => "pending" as ActionStatus) : undefined,
         },
       ]);
     } catch (err) {
@@ -63,8 +66,9 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
     }
   }
 
-  async function applyAction(index: number, action: ProposedAction) {
-    setApplyingAt(index);
+  async function applyAction(msgIndex: number, actionIndex: number, action: ProposedAction) {
+    const key = `${msgIndex}:${actionIndex}`;
+    setApplyingAt(key);
     setError(null);
     try {
       const res =
@@ -81,7 +85,14 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
             });
       const data = await res.json();
       if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Échec de l'application.");
-      setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, status: "applied" } : m)));
+      setMessages((prev) =>
+        prev.map((m, i) => {
+          if (i !== msgIndex || !m.statuses) return m;
+          const statuses = [...m.statuses];
+          statuses[actionIndex] = "applied";
+          return { ...m, statuses };
+        }),
+      );
       onProductChange(data.item as Product);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue.");
@@ -90,8 +101,27 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
     }
   }
 
-  function dismiss(index: number) {
-    setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, status: "dismissed" } : m)));
+  function dismiss(msgIndex: number, actionIndex: number) {
+    setMessages((prev) =>
+      prev.map((m, i) => {
+        if (i !== msgIndex || !m.statuses) return m;
+        const statuses = [...m.statuses];
+        statuses[actionIndex] = "dismissed";
+        return { ...m, statuses };
+      }),
+    );
+  }
+
+  async function applyAll(msgIndex: number) {
+    const m = messages[msgIndex];
+    if (!m.proposedActions || !m.statuses) return;
+    // Séquentiel, pas en parallèle : l'indicateur "en cours" reste fiable
+    // et ça évite de bombarder l'API de plusieurs écritures simultanées.
+    for (let i = 0; i < m.proposedActions.length; i++) {
+      if (m.statuses[i] === "pending") {
+        await applyAction(msgIndex, i, m.proposedActions[i]);
+      }
+    }
   }
 
   return (
@@ -105,12 +135,12 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
           <p className="text-xs text-muted">Décris ce que tu veux ajouter ou modifier, en une phrase.</p>
         </div>
         <button
-          onClick={() => send("Analyse mon catalogue et propose-moi une amélioration concrète sur un produit, avec ton explication.")}
+          onClick={() => send("Analyse mon catalogue et propose-moi plusieurs améliorations concrètes (3 si possible), chacune avec ton explication.")}
           disabled={loading}
           className="glass-pill inline-flex flex-none items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50"
         >
           <Sparkles size={12} />
-          Suggestion
+          Suggestions
         </button>
       </div>
 
@@ -129,71 +159,92 @@ export default function CatalogAgent({ onProductChange }: { onProductChange: (pr
           </div>
         ) : null}
 
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] ${m.role === "user" ? "" : "w-full"}`}>
-              <div
-                className={`whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                  m.role === "user" ? "bg-ink text-paper" : "glass text-ink-soft"
-                }`}
-              >
-                {m.text}
-              </div>
-
-              {m.proposedAction ? (
-                <div className="glass-strong mt-2 rounded-2xl border border-accent/25 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-                    {m.proposedAction.type === "create" ? "Nouveau produit" : "Modification proposée"}
-                  </p>
-                  <div className="mt-1.5 space-y-0.5 text-xs text-ink-soft">
-                    {m.proposedAction.type === "create" ? (
-                      <>
-                        <p className="font-semibold text-ink">{m.proposedAction.fields.name}</p>
-                        <p>{formatFCFA(m.proposedAction.fields.price)} · {m.proposedAction.fields.conditionDetail}</p>
-                        <p>{m.proposedAction.fields.description}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-semibold text-ink">{m.proposedAction.productName}</p>
-                        {Object.entries(m.proposedAction.fields).map(([k, v]) => (
-                          <p key={k}>
-                            {k} → {String(v)}
-                          </p>
-                        ))}
-                      </>
-                    )}
-                  </div>
-
-                  {m.status === "applied" ? (
-                    <p className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                      <Check size={13} /> Appliqué
-                    </p>
-                  ) : m.status === "dismissed" ? (
-                    <p className="mt-2.5 text-xs font-semibold text-muted">Ignoré</p>
-                  ) : (
-                    <div className="mt-2.5 flex gap-2">
-                      <button
-                        onClick={() => applyAction(i, m.proposedAction!)}
-                        disabled={applyingAt === i}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                      >
-                        {applyingAt === i ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                        Appliquer
-                      </button>
-                      <button
-                        onClick={() => dismiss(i)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-ink-soft"
-                      >
-                        <X size={12} />
-                        Ignorer
-                      </button>
-                    </div>
-                  )}
+        {messages.map((m, mi) => {
+          const pendingCount = m.statuses?.filter((s) => s === "pending").length ?? 0;
+          return (
+            <div key={mi} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[90%] ${m.role === "user" ? "" : "w-full"}`}>
+                <div
+                  className={`whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                    m.role === "user" ? "bg-ink text-paper" : "glass text-ink-soft"
+                  }`}
+                >
+                  {m.text}
                 </div>
-              ) : null}
+
+                {m.proposedActions && m.proposedActions.length > 0 ? (
+                  <div className="mt-2 space-y-2">
+                    {pendingCount > 1 ? (
+                      <button
+                        onClick={() => applyAll(mi)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-paper"
+                      >
+                        <Check size={12} />
+                        Tout appliquer ({pendingCount})
+                      </button>
+                    ) : null}
+
+                    {m.proposedActions.map((action, ai) => {
+                      const status = m.statuses?.[ai] ?? "pending";
+                      const key = `${mi}:${ai}`;
+                      return (
+                        <div key={ai} className="glass-strong rounded-2xl border border-accent/25 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+                            {action.type === "create" ? "Nouveau produit" : "Modification proposée"}
+                          </p>
+                          <div className="mt-1.5 space-y-0.5 text-xs text-ink-soft">
+                            {action.type === "create" ? (
+                              <>
+                                <p className="font-semibold text-ink">{action.fields.name}</p>
+                                <p>{formatFCFA(action.fields.price)} · {action.fields.conditionDetail}</p>
+                                <p>{action.fields.description}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-semibold text-ink">{action.productName}</p>
+                                {Object.entries(action.fields).map(([k, v]) => (
+                                  <p key={k}>
+                                    {k} → {String(v)}
+                                  </p>
+                                ))}
+                              </>
+                            )}
+                          </div>
+
+                          {status === "applied" ? (
+                            <p className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                              <Check size={13} /> Appliqué
+                            </p>
+                          ) : status === "dismissed" ? (
+                            <p className="mt-2.5 text-xs font-semibold text-muted">Ignoré</p>
+                          ) : (
+                            <div className="mt-2.5 flex gap-2">
+                              <button
+                                onClick={() => applyAction(mi, ai, action)}
+                                disabled={applyingAt === key}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                              >
+                                {applyingAt === key ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                Appliquer
+                              </button>
+                              <button
+                                onClick={() => dismiss(mi, ai)}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-ink-soft"
+                              >
+                                <X size={12} />
+                                Ignorer
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {loading ? (
           <div className="flex justify-start">

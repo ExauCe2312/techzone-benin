@@ -31,7 +31,10 @@ Catégorie : ${input.categoryLabel}
 État : ${input.conditionDetail}
 Notes fournies par le vendeur : ${input.notes?.trim() || "aucune"}
 
-Réponds uniquement avec la description, sans rien d'autre.`;
+Si les notes ne suffisent pas à donner des caractéristiques précises (puce, écran, appareil photo, batterie...),
+cherche les vraies caractéristiques de ce modèle sur le web avant de rédiger.
+
+Réponds uniquement avec la description, rien d'autre — pas d'introduction, pas de liste des sources.`;
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -43,13 +46,13 @@ Réponds uniquement avec la description, sans rien d'autre.`;
       },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
+        // Recherche web activée : sans elle, le modèle ne connaît que ce que le
+        // vendeur a tapé dans "notes" et produit une description vague quand ce
+        // champ est vide ou trop court.
+        tools: [{ google_search: {} }],
         generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 200,
-          // Cette tâche est simple (1-2 phrases) : on désactive le "raisonnement" interne
-          // du modèle — inutile ici, et ça évite de récupérer un fragment de réflexion
-          // au lieu de la réponse finale (voir le filtre sur "thought" ci-dessous).
-          thinkingConfig: { thinkingBudget: 0 },
+          temperature: 0.5,
+          maxOutputTokens: 400,
         },
       }),
     },
